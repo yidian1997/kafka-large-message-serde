@@ -56,7 +56,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
-import software.amazon.awssdk.http.SdkHttpClient;
 import software.amazon.awssdk.http.TlsTrustManagersProvider;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
@@ -172,9 +171,10 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
                     + "e.g. for EKS `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`.";
     public static final String S3_JWT_PATH_CONFIG_DEFAULT = "";
     public static final String S3_SECRET_KEY_DEFAULT = "";
-    public static final String S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_CONFIG = S3_PREFIX + "apache.http.client.builder";
-    public static final Class<? extends TlsTrustManagersProvider> S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_DEFAULT = DefaultTlsTrustManagersProvider.class;
-    public static final String S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_DOC = "";
+    public static final String S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG = S3_PREFIX + "tls.trust.manager.provider";
+    public static final Class<? extends TlsTrustManagersProvider> S3_TLS_TRUST_MANAGER_PROVIDER_DEFAULT = DefaultTlsTrustManagersProvider.class;
+    public static final String S3_TLS_TRUST_MANAGER_PROVIDER_DOC = "Class to use for providing custom trust managers for"
+            + " the S3 client. This is useful when some s3-compatible server like minio uses a self-signed certificate.";
 
     public static final String AZURE_PREFIX = PREFIX + AzureBlobStorageClient.SCHEME + ".";
     public static final String AZURE_CONNECTION_STRING_CONFIG = AZURE_PREFIX + "connection.string";
@@ -233,7 +233,7 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
                         S3_ROLE_SESSION_NAME_CONFIG_DOC)
                 .define(S3_JWT_PATH_CONFIG, Type.STRING, S3_JWT_PATH_CONFIG_DEFAULT, Importance.LOW,
                         S3_JWT_PATH_CONFIG_DOC)
-                .define(S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_CONFIG, Type.CLASS, S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_DEFAULT, Importance.LOW, S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_DOC)
+                .define(S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG, Type.CLASS, S3_TLS_TRUST_MANAGER_PROVIDER_DEFAULT, Importance.LOW, S3_TLS_TRUST_MANAGER_PROVIDER_DOC)
                 // Azure Blob Storage
                 .define(AZURE_CONNECTION_STRING_CONFIG, Type.PASSWORD, AZURE_CONNECTION_STRING_DEFAULT, Importance.LOW,
                         AZURE_CONNECTION_STRING_DOC)
@@ -326,7 +326,7 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
     }
 
     private Optional<TlsTrustManagersProvider> getTlsTrustManagerProvider() {
-        Class<?> c = this.getClass(S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_CONFIG);
+        Class<?> c = this.getClass(S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG);
         if (c == null) {
             return Optional.empty();
         } else {

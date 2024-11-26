@@ -22,7 +22,8 @@
  * SOFTWARE.
  */
 
-description = "Base module for Kafka plugins that store large messages on a blob storage, such as Amazon S3 and Azure Blob Storage"
+description =
+    "Base module for Kafka plugins that store large messages on a blob storage, such as Amazon S3 and Azure Blob Storage"
 
 
 
@@ -37,7 +38,7 @@ dependencies {
     val awsVersion = "2.22.10"
     api(group = "software.amazon.awssdk", name = "s3", version = awsVersion)
     api(group = "software.amazon.awssdk", name = "sts", version = awsVersion)
-    api(group = "software.amazon.awssdk",name = "apache-client",version = awsVersion)
+    api(group = "software.amazon.awssdk", name = "apache-client", version = awsVersion)
     api(group = "com.azure", name = "azure-storage-blob", version = "12.25.1")
     api(group = "com.google.cloud", name = "google-cloud-storage", version = "2.30.1")
     implementation(group = "com.google.guava", name = "guava", version = "33.0.0-jre")
