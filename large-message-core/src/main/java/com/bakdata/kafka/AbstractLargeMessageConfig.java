@@ -45,6 +45,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+
+import io.confluent.common.utils.Utils;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.errors.SerializationException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -52,6 +55,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -165,6 +169,9 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
                     + "e.g. for EKS `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`.";
     public static final String S3_JWT_PATH_CONFIG_DEFAULT = "";
     public static final String S3_SECRET_KEY_DEFAULT = "";
+    public static final String S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_CONFIG = S3_PREFIX + "apache.http.client.builder";
+    public static final String S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_DEFAULT = "";
+    public static final String S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_DOC = "";
 
     public static final String AZURE_PREFIX = PREFIX + AzureBlobStorageClient.SCHEME + ".";
     public static final String AZURE_CONNECTION_STRING_CONFIG = AZURE_PREFIX + "connection.string";
@@ -223,6 +230,7 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
                         S3_ROLE_SESSION_NAME_CONFIG_DOC)
                 .define(S3_JWT_PATH_CONFIG, Type.STRING, S3_JWT_PATH_CONFIG_DEFAULT, Importance.LOW,
                         S3_JWT_PATH_CONFIG_DOC)
+                .define(S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_CONFIG, Type.STRING,S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_DEFAULT, Importance.LOW,S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_DOC)
                 // Azure Blob Storage
                 .define(AZURE_CONNECTION_STRING_CONFIG, Type.PASSWORD, AZURE_CONNECTION_STRING_DEFAULT, Importance.LOW,
                         AZURE_CONNECTION_STRING_DOC)
@@ -301,10 +309,27 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
         this.getAmazonEndpointOverride().ifPresent(clientBuilder::endpointOverride);
         this.getAmazonRegion().ifPresent(clientBuilder::region);
         this.getAmazonCredentialsProvider().ifPresent(clientBuilder::credentialsProvider);
+        if (!this.getString(S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_CONFIG).isEmpty()){
+            this.getApacheHttpClient().ifPresent(clientBuilder::httpClientBuilder);
+        }
         if (this.enableAmazonS3PathStyleAccess()) {
             clientBuilder.forcePathStyle(true);
         }
         return new AmazonS3Client(clientBuilder.build());
+    }
+
+    private Optional<ApacheHttpClient.Builder> getApacheHttpClient(){
+        Class<?> c = this.getClass(S3_APACHE_HTTP_CLIENT_BUILDER_CLASS_CONFIG);
+        if (c == null) {
+            return Optional.empty();
+        }else {
+            Object o = Utils.newInstance(c);
+            if (o instanceof ApacheHttpClient.Builder) {
+                return Optional.of(((ApacheHttpClient.Builder) o).tlsTrustManagersProvider(null));
+            } else {
+                throw new SerializationException("Class " + c.getName() + " is not an instance of " + ApacheHttpClient.class.getName());
+            }
+        }
     }
 
     private Optional<URI> getAmazonEndpointOverride() {
