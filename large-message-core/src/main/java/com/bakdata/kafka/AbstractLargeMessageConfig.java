@@ -312,10 +312,12 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
         this.getAmazonEndpointOverride().ifPresent(clientBuilder::endpointOverride);
         this.getAmazonRegion().ifPresent(clientBuilder::region);
         this.getAmazonCredentialsProvider().ifPresent(clientBuilder::credentialsProvider);
-        if (this.getClass(S3_TLS_TRUST_MANAGER_PROVIDER_CLASS_CONFIG) != null) {
-            if (this.getTlsTrustManagerProvider().isPresent()) {
-                clientBuilder.httpClientBuilder(ApacheHttpClient.builder().tlsTrustManagersProvider(this.getTlsTrustManagerProvider().get()));
-            }
+        if (this.getTlsTrustManagerProvider().isPresent()) {
+            clientBuilder.httpClientBuilder(
+                    ApacheHttpClient.builder().tlsTrustManagersProvider(
+                            this.getTlsTrustManagerProvider().get()
+                    )
+            );
         }
         if (this.enableAmazonS3PathStyleAccess()) {
             clientBuilder.forcePathStyle(true);
