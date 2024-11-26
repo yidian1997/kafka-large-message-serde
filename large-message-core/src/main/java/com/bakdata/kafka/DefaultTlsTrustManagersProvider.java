@@ -5,19 +5,14 @@ import software.amazon.awssdk.http.TlsTrustManagersProvider;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
-import java.io.FileInputStream;
 import java.security.KeyStore;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
 
 public class DefaultTlsTrustManagersProvider implements TlsTrustManagersProvider {
 
     @Override
     public TrustManager[] trustManagers() {
-        // Create a trust manager wrapper to simulate adding self-signed CA cert into the default trust store
         X509TrustManager defaultTrustStore = loadDefaultTrustStore();
 
         X509TrustManager trustManagerWrapper = new X509TrustManager() {
