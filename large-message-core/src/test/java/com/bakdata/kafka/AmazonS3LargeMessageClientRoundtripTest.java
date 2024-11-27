@@ -69,6 +69,7 @@ class AmazonS3LargeMessageClientRoundtripTest extends AmazonS3IntegrationTest {
         final String bucket = "bucket";
         final String basePath = "s3://" + bucket + "/base/";
         final Map<String, Object> properties = ImmutableMap.<String, Object>builder()
+                .put(AbstractLargeMessageConfig.S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG,DefaultTlsTrustManagersProvider.class.getName())
                 .put(AbstractLargeMessageConfig.MAX_BYTE_SIZE_CONFIG, 0)
                 .put(AbstractLargeMessageConfig.BASE_PATH_CONFIG, basePath)
                 .put(AbstractLargeMessageConfig.S3_ENABLE_PATH_STYLE_ACCESS_CONFIG, argument.isPathStyleAccess())

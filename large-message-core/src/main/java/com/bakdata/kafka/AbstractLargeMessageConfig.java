@@ -36,6 +36,7 @@ import io.confluent.common.config.AbstractConfig;
 import io.confluent.common.config.ConfigDef;
 import io.confluent.common.config.ConfigDef.Importance;
 import io.confluent.common.config.ConfigDef.Type;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -45,6 +46,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+
+import io.confluent.common.utils.Utils;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.errors.SerializationException;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
@@ -52,6 +56,8 @@ import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
+import software.amazon.awssdk.http.TlsTrustManagersProvider;
+import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
@@ -165,6 +171,10 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
                     + "e.g. for EKS `/var/run/secrets/eks.amazonaws.com/serviceaccount/token`.";
     public static final String S3_JWT_PATH_CONFIG_DEFAULT = "";
     public static final String S3_SECRET_KEY_DEFAULT = "";
+    public static final String S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG = S3_PREFIX + "tls.trust.manager.provider";
+    public static final Class<? extends TlsTrustManagersProvider> S3_TLS_TRUST_MANAGER_PROVIDER_DEFAULT = DefaultTlsTrustManagersProvider.class;
+    public static final String S3_TLS_TRUST_MANAGER_PROVIDER_DOC = "Class to use for providing custom trust managers for"
+            + " the S3 client. This is useful when some s3-compatible server like minio uses a self-signed certificate.";
 
     public static final String AZURE_PREFIX = PREFIX + AzureBlobStorageClient.SCHEME + ".";
     public static final String AZURE_CONNECTION_STRING_CONFIG = AZURE_PREFIX + "connection.string";
@@ -223,6 +233,7 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
                         S3_ROLE_SESSION_NAME_CONFIG_DOC)
                 .define(S3_JWT_PATH_CONFIG, Type.STRING, S3_JWT_PATH_CONFIG_DEFAULT, Importance.LOW,
                         S3_JWT_PATH_CONFIG_DOC)
+                .define(S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG, Type.CLASS, S3_TLS_TRUST_MANAGER_PROVIDER_DEFAULT, Importance.LOW, S3_TLS_TRUST_MANAGER_PROVIDER_DOC)
                 // Azure Blob Storage
                 .define(AZURE_CONNECTION_STRING_CONFIG, Type.PASSWORD, AZURE_CONNECTION_STRING_DEFAULT, Importance.LOW,
                         AZURE_CONNECTION_STRING_DOC)
@@ -301,10 +312,31 @@ public class AbstractLargeMessageConfig extends AbstractConfig {
         this.getAmazonEndpointOverride().ifPresent(clientBuilder::endpointOverride);
         this.getAmazonRegion().ifPresent(clientBuilder::region);
         this.getAmazonCredentialsProvider().ifPresent(clientBuilder::credentialsProvider);
+        if (this.getTlsTrustManagerProvider().isPresent()) {
+            clientBuilder.httpClientBuilder(
+                    ApacheHttpClient.builder().tlsTrustManagersProvider(
+                            this.getTlsTrustManagerProvider().get()
+                    )
+            );
+        }
         if (this.enableAmazonS3PathStyleAccess()) {
             clientBuilder.forcePathStyle(true);
         }
         return new AmazonS3Client(clientBuilder.build());
+    }
+
+    private Optional<TlsTrustManagersProvider> getTlsTrustManagerProvider() {
+        Class<?> c = this.getClass(S3_TLS_TRUST_MANAGER_PROVIDER_CONFIG);
+        if (c == null) {
+            return Optional.empty();
+        } else {
+            Object o = Utils.newInstance(c);
+            if (o instanceof TlsTrustManagersProvider) {
+                return Optional.of((TlsTrustManagersProvider) o);
+            } else {
+                throw new SerializationException("Class " + c.getName() + " is not an instance of " + TlsTrustManagersProvider.class.getName());
+            }
+        }
     }
 
     private Optional<URI> getAmazonEndpointOverride() {
